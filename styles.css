@@ -259,6 +259,10 @@ label input {
   width: 40%;
 }
 
+.body__form-text_other1 {
+  text-align: center;
+}
+
 .cancel-button,
 .set-button {
   border: none;
