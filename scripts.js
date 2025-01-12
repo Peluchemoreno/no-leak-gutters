@@ -209,7 +209,8 @@ el.addEventListener('pointerdown', function (event) {
       return
     } else {
       ctx.fillText(`${userInput}`, startX, startY);
-      newPath.push(ctx.getImageData(0, 0, el.width, el.height));
+      paths.push(ctx.getImageData(0, 0, el.width, el.height));
+      index ++;
       indexCopy += 1;
     }
   }
@@ -284,6 +285,7 @@ el.addEventListener('pointerup', function (event) {
   ctx.stroke();
   ctx.closePath();
   updateGridButton(undoBtn);
+  console.log(paths)
 });
 
 el.addEventListener('touchcancel', handleCancel);
@@ -327,6 +329,7 @@ function ongoingTouchIndexById(idToFind) {
 }
 
 function undo() {
+  console.log(paths, index)
   if (index <= 0) {
     clear();
   } else {
