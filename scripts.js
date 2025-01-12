@@ -40,15 +40,12 @@ function updateGridSize(number) {
 function startup() {
   let context = el.getContext('2d');
   let gridNumber = document.querySelector('#grid-size');
-  el.width = 790;
-  el.height = 500;
+  el.width = 800;
+  el.height = 400;
   gridSize = updateGridSize(parseInt(gridNumber.value));
 
   if (window.chrome) {
     let phoneEmailRow = document.querySelector('.customer-details-body2');
-    phoneEmailRow.style.marginTop = '-16px';
-    let materialSide = document.querySelector('.material-side');
-    let canvasSide = document.querySelector('.canvas-side');
   }
 
   //===============draw grid=====================
@@ -56,6 +53,7 @@ function startup() {
     context.moveTo(x, 0);
     context.lineTo(x, el.height);
     context.strokeStyle = 'lightgray';
+    console.log('stroke')
     context.stroke();
   }
   for (y = 0; y < el.height; y += gridSize) {
@@ -126,7 +124,6 @@ function handleDraw() {
   isDrawing = true;
   let newX = Math.round(startX / gridSize) * gridSize;
   let newY = Math.round(startY / gridSize) * gridSize;
-  console.log(color);
   updateColor(ctx);
   ctx.beginPath();
   ctx.moveTo(newX, newY);
@@ -356,7 +353,6 @@ function finish() {
   window.onbeforeprint = (event) => {
     toolsBar = document.querySelector('.tools-bar');
     toolsBar.style.display = 'none';
-    legendPic = document.querySelector('.legend-pic');
   };
   window.print();
 }
