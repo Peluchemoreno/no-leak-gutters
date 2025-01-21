@@ -18,6 +18,18 @@
   </head>
 
   <body>
+    <div class="modal">
+      <div class="modal__container">
+        <h2 class="container__title">
+          Type in the elbow sequence or the length of the piece. (ex: AABA, 57")
+        </h2>
+        <input id="textinput" type="text" class="container__input" />
+        <div class="container__buttons">
+          <button type="button" class="button button_cancel">Cancel</button>
+          <button type="button" class="button button_confirm">OK</button>
+        </div>
+      </div>
+    </div>
     <div class="form-wrapper">
       <form>
         <div class="header-container">
@@ -285,7 +297,7 @@
             <div class="tools-bar">
               <select id="tool-select">
                 <option value="gutter">Gutter</option>
-                <option value="gutter-w-screen">Gutter w/ Screen</option>
+                <!-- <option value="gutter-w-screen">Gutter w/ Screen</option> -->
                 <option value="existing-gutter">Existing Gutter</option>
                 <option value="downspout">Downspout</option>
                 <option value="drop">Drop to lower</option>
@@ -340,9 +352,7 @@
                   Yellow
                 </option>
               </select>
-              <button type="button" class="undo-button" onclick="undo()">
-                Undo
-              </button>
+              <button type="button" class="undo-button">Undo</button>
               <button type="button" id="clear-button">Clear</button>
               <!-- <button type="button" id="show-legend" onclick="showLegend()">LGND</button> -->
               <button type="button" id="finish-button" onclick="finish()">

@@ -1,366 +1,278 @@
-let undoBtn = document.querySelector('.undo-button');
-const clearButton = document.querySelector('#clear-button');
-const ongoingTouches = [];
-let colorPicker = document.querySelector('#color');
-let color = colorPicker.value;
-const module = document.querySelector('.module');
-const cancelBtn = document.querySelector('.cancel-button');
-const setBtn = document.querySelector('.set-button')
-const body = document.querySelector('body');
-const colorPreview = document.querySelector('.color-preview');
-const redBtn = document.querySelector('.red');
-const cyanBtn = document.querySelector('.cyan');
-const blueBtn = document.querySelector('.blue');
-const greenBtn = document.querySelector('.green');
-const pinkBtn = document.querySelector('.pink');
-const yellowBtn = document.querySelector('.yellow');
-const blackBtn = document.querySelector('.black');
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const undoBtn = document.querySelector(".undo-button");
+const clearButton = document.querySelector("#clear-button");
+const colorPicker = document.querySelector("#color");
+const gridSizeInput = document.querySelector("#grid-size");
+const tool = document.querySelector("#tool-select");
+const textInputEl = document.querySelector(".container__input");
+const cancelBtn = document.querySelector(".button_cancel");
+const confirmBtn = document.querySelector(".button_confirm");
+const modal = document.querySelector(".modal");
 
-let startX, startY;
-let currentX, currentY;
-const el = document.getElementById('canvas');
-let ctx = el.getContext('2d');
 let isDrawing = false;
+let startX, startY, currentX, currentY;
 let paths = [];
-let newPath = [];
-points = [];
 let index = -1;
-let indexCopy = -1;
-const tool = document.querySelector('#tool-select');
-const gridNumber = document.querySelector('#grid-size');
-let elbowSequence;
-let pieceLength;
+let rubberLinePath = null;
 
-function updateGridSize(number) {
-  let gridNumber = document.querySelector('#grid-size');
-  gridNumber.value = number;
-  return number;
-}
-
+// Initialize Canvas
 function startup() {
-  let context = el.getContext('2d');
-  let gridNumber = document.querySelector('#grid-size');
-  el.width = 800;
-  el.height = 400;
-  gridSize = updateGridSize(parseInt(gridNumber.value));
-
-  if (window.chrome) {
-    let phoneEmailRow = document.querySelector('.customer-details-body2');
-  }
-
-  //===============draw grid=====================
-  for (x = 0; x < el.width; x += gridSize) {
-    context.moveTo(x, 0);
-    context.lineTo(x, el.height);
-    context.strokeStyle = 'lightgray';
-    console.log('stroke')
-    context.stroke();
-  }
-  for (y = 0; y < el.height; y += gridSize) {
-    context.moveTo(0, y);
-    context.lineTo(el.width, y);
-    context.stroke();
-  }
-  updateGridButton(undoBtn);
+  canvas.width = 800;
+  canvas.height = 400;
+  drawGrid();
+  updateUndoButton();
 }
 
-document.addEventListener("DOMContentLoaded", startup);
-
-document.body.addEventListener("pointerdown", function (e) {
-  if (e.target == canvas) {
-    e.preventDefault();
+// Draw the grid on the canvas
+function drawGrid() {
+  const gridSize = parseInt(gridSizeInput.value);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "lightgray";
+  for (let x = 0; x < canvas.width; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
   }
-}, { passive: false });
-document.body.addEventListener("touchend", function (e) {
-  if (e.target == canvas) {
-    e.preventDefault();
-  }
-}, { passive: false });
-document.body.addEventListener("touchmove", function (e) {
-  if (e.target == canvas) {
-    e.preventDefault();
-  }
-}, { passive: false });
-
-function updateColor(context) {
-  let color = document.querySelector('#color').value;
-  let colorPreview = document.querySelector('#color');
-  if (color === 'green') {
-    context.strokeStyle = "#2efc05";
-    context.fillStyle = "#2efc05";
-    colorPreview.style.backgroundColor = "#2efc05";
-  }
-  else if (color === 'black') {
-    context.strokeStyle = color;
-    context.fillStyle = color;
-    colorPreview.style.backgroundColor = color;
-    colorPreview.style.color = 'white';
-  }
-  else if (color === 'cyan') {
-    context.strokeStyle = color;
-    context.fillStyle = color;
-    colorPreview.style.backgroundColor = color;
-    colorPreview.style.color = 'black';
-  }
-  else if (color === '#2efc05') {
-    context.strokeStyle = color;
-    context.fillStyle = color;
-    colorPreview.style.backgroundColor = color;
-    colorPreview.style.color = 'black';
-  }
-  else {
-    context.strokeStyle = color;
-    context.fillStyle = color;
-    colorPreview.style.backgroundColor = color;
+  for (let y = 0; y < canvas.height; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
   }
 }
 
-function handleDraw() {
-  let el = document.querySelector('#canvas');
-  let ctx = el.getContext('2d');
-  startX = (event.pageX - el.offsetLeft);
-  startY = (event.pageY - el.offsetTop);
-  let color = document.querySelector('#color').value;
+// Snap coordinates to the nearest grid point
+function snapToGrid(value) {
+  const gridSize = parseInt(gridSizeInput.value);
+  return Math.round(value / gridSize) * gridSize;
+}
+
+// Get coordinates from event (supports both mouse and touch)
+function getCoordinates(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.touches ? event.touches[0].clientX : event.clientX;
+  const y = event.touches ? event.touches[0].clientY : event.clientY;
+  return {
+    x: snapToGrid(x - rect.left),
+    y: snapToGrid(y - rect.top),
+  };
+}
+
+// Update the color based on user selection
+function updateColor() {
+  ctx.strokeStyle = colorPicker.value;
+  ctx.fillStyle = colorPicker.value;
+}
+
+function addToUndoStack() {
+  paths.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  index++;
+  updateUndoButton();
+}
+
+// Start drawing
+function startDrawing(event) {
   isDrawing = true;
-  let newX = Math.round(startX / gridSize) * gridSize;
-  let newY = Math.round(startY / gridSize) * gridSize;
-  updateColor(ctx);
+  const { x, y } = getCoordinates(event);
+  startX = x;
+  startY = y;
+  updateColor();
+  if (tool.value === "gutter") {
+    ctx.setLineDash([]);
+  } else if (tool.value === "existing-gutter") {
+    ctx.setLineDash([2, 2]);
+  } else if (tool.value === "downspout" || tool.value === "drop") {
+    ctx.setLineDash([]);
+  }
+}
+
+// Draw a rubber line
+function drawRubberLine(event) {
+  if (
+    !isDrawing ||
+    tool.value === "downspout" ||
+    tool.value === "drop" ||
+    tool.value === "valley-shield" ||
+    tool.value === "free-text"
+  )
+    return;
+  const { x, y } = getCoordinates(event);
+  currentX = x;
+  currentY = y;
+
+  if (rubberLinePath) {
+    ctx.putImageData(rubberLinePath, 0, 0); // Clear temporary line
+  } else {
+    rubberLinePath = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
   ctx.beginPath();
-  ctx.moveTo(newX, newY);
-}
-
-el.addEventListener('pointerdown', function (event) {
-  event.preventDefault();
-  if (tool.value === 'gutter') {
-    handleDraw();
-  } else if (tool.value === 'existing-gutter') {
-    handleDraw();
-  } else if (tool.value === 'gutter-w-screen') {
-    handleDraw();
-  } else if (tool.value === 'drop') {
-    startX = (event.pageX - el.offsetLeft);
-    startY = (event.pageY - el.offsetTop);
-    isDrawing = true;
-    let newX = Math.round(startX / gridSize) * gridSize;
-    let newY = Math.round(startY / gridSize) * gridSize;
-    ctx.beginPath();
-    ctx.setLineDash([]);
-    updateColor(ctx);
-    context.arc(newX, newY, gridSize / 4, 0, 2 * Math.PI);
-    context.lineWidth = 1;
-    context.stroke();
-  } else if (tool.value === 'downspout') {
-    startX = (event.pageX - el.offsetLeft);
-    startY = (event.pageY - el.offsetTop);
-    isDrawing = true;
-    let newX = Math.round(startX / gridSize) * gridSize;
-    let newY = Math.round(startY / gridSize) * gridSize;
-    ctx.beginPath();
-    ctx.setLineDash([]);
-    ctx.moveTo(newX, newY);
-    ctx.lineTo(newX + gridSize / 2.75, newY + gridSize / 2.75);
-    ctx.moveTo(newX, newY);
-    ctx.lineTo(newX - gridSize / 2.75, newY + gridSize / 2.75);
-    ctx.moveTo(newX, newY);
-    ctx.lineTo(newX - gridSize / 2.75, newY - gridSize / 2.75);
-    ctx.moveTo(newX, newY);
-    ctx.lineTo(newX + gridSize / 2.75, newY - gridSize / 2.75);
-    updateColor(ctx);
-    context.lineWidth = 2;
-    context.stroke();
-  } else if (tool.value === 'valley-shield') {
-    startX = (event.pageX - el.offsetLeft);
-    startY = (event.pageY - el.offsetTop);
-    isDrawing = true;
-    let newX = Math.round(startX / gridSize) * gridSize;
-    let newY = Math.round(startY / gridSize) * gridSize;
-    ctx.beginPath();
-    ctx.setLineDash([]);
-    updateColor(ctx);
-    ctx.moveTo(newX, newY);
-    context.arc(newX, newY, gridSize / 4, 0, 2 * Math.PI);
-    context.fill();
-  } else if (tool.value === 'flashing') {
-    startX = (event.pageX - el.offsetLeft);
-    startY = (event.pageY - el.offsetTop);
-    isDrawing = true;
-    let newX = Math.round(startX / gridSize) * gridSize;
-    let newY = Math.round(startY / gridSize) * gridSize;
-    ctx.beginPath();
-    ctx.setLineDash([]);
-    ctx.moveTo(newX, newY);
-  } else if (tool.value === 'fascia-repair') {
-    startX = (event.pageX - el.offsetLeft);
-    startY = (event.pageY - el.offsetTop);
-    isDrawing = true;
-    let newX = Math.round(startX / gridSize) * gridSize;
-    let newY = Math.round(startY / gridSize) * gridSize;
-    ctx.beginPath();
-    ctx.setLineDash([]);
-    ctx.moveTo(newX, newY);
-  } else if (tool.value === 'free-text') {
-    startX = (event.pageX - el.offsetLeft);
-    startY = (event.pageY - el.offsetTop);
-    let userInput = prompt('Type in the elbow sequence or the length of the piece. (ex: AABA, 57")');
-    ctx.font = '1000 12px Arial';
-    ctx.fillStyle = 'black';
-    ctx.textAlign = 'center';
-    if (!userInput) {
-      return
-    } else {
-      ctx.fillText(`${userInput}`, startX, startY);
-      paths.push(ctx.getImageData(0, 0, el.width, el.height));
-      index ++;
-      indexCopy += 1;
-    }
-  }
-});
-
-el.addEventListener('pointermove', function (event) {
-  context = el.getContext('2d');
-  if (isDrawing && tool.value === 'gutter') {
-    context.globalCompositeOperation = 'source-over';
-    currentX = (event.pageX - el.offsetLeft);
-    currentY = (event.pageY - el.offsetTop);
-    let newX = Math.round(currentX / gridSize) * gridSize;
-    let newY = Math.round(currentY / gridSize) * gridSize;
-    context.setLineDash([]);
-    context.lineTo(newX, newY);
-    context.lineWidth = 2;
-    context.stroke();
-  } else if (isDrawing && tool.value === 'gutter-w-screen') {
-    currentX = (event.pageX - el.offsetLeft);
-    currentY = (event.pageY - el.offsetTop);
-    let newX = Math.round(currentX / gridSize) * gridSize;
-    let newY = Math.round(currentY / gridSize) * gridSize;
-    context.lineTo(newX, newY);
-    context.lineWidth = gridSize / 2.5;
-    context.stroke();
-    context.lineWidth = 1;
-    context.globalCompositeOperation = 'xor';
-    context.stroke();
-  } else if (isDrawing && tool.value === 'existing-gutter') {
-    context.globalCompositeOperation = 'source-over';
-    currentX = (event.pageX - el.offsetLeft);
-    currentY = (event.pageY - el.offsetTop);
-    let newX = Math.round(currentX / gridSize) * gridSize;
-    let newY = Math.round(currentY / gridSize) * gridSize;
-    context.setLineDash([2, 2]);
-    context.lineTo(newX, newY);
-    context.lineWidth = 2;
-    context.stroke();
-  } else if (isDrawing && tool.value === 'flashing') {
-    context.globalCompositeOperation = 'source-over';
-    currentX = (event.pageX - el.offsetLeft);
-    currentY = (event.pageY - el.offsetTop);
-    let newX = Math.round(currentX / gridSize) * gridSize;
-    let newY = Math.round(currentY / gridSize) * gridSize;
-    context.setLineDash([]);
-    context.lineTo(newX, newY);
-    context.moveTo(newX + 4, newY - 4);
-    context.lineWidth = 2;
-    context.stroke();
-  } else if (isDrawing && tool.value === 'fascia-repair') {
-    context.globalCompositeOperation = 'source-over';
-    currentX = (event.pageX - el.offsetLeft);
-    currentY = (event.pageY - el.offsetTop);
-    let newX = Math.round(currentX / gridSize) * gridSize;
-    let newY = Math.round(currentY / gridSize) * gridSize;
-    context.setLineDash([]);
-    context.lineTo(newX, newY);
-    context.moveTo(newX - 5, newY + 5);
-    context.lineWidth = 2;
-    context.stroke();
-  }
-});
-
-el.addEventListener('pointerup', function (event) {
-  event.preventDefault();
-  isDrawing = false;
-  const ctx = el.getContext('2d');
-  paths.push(ctx.getImageData(0, 0, el.width, el.height));
-  index += 1;
-  ctx.moveTo(currentX, currentY);
+  ctx.moveTo(startX, startY);
   ctx.lineTo(currentX, currentY);
+  ctx.lineWidth = 2;
   ctx.stroke();
-  ctx.closePath();
-  updateGridButton(undoBtn);
-  console.log(paths)
-});
-
-el.addEventListener('touchcancel', handleCancel);
-
-function clear() {
-  const el = document.getElementById('canvas');
-  ctx.clearRect(0, 0, el.width, el.height);
-  paths = [];
-  index = -1;
-  updateGridButton(undoBtn);
-  startup();
-
 }
 
-clearButton.addEventListener('click', clear);
+// Finalize the line on pointer up
+function stopDrawing() {
+  if (isDrawing) {
+    isDrawing = false;
+    rubberLinePath = null; // Clear rubber band
 
-function handleCancel(evt) {
-  evt.preventDefault();
-  log('touchcancel.');
-  const touches = evt.changedTouches;
+    if (tool.value === "downspout") {
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(
+        startX + gridSizeInput.value / 2.75,
+        startY + gridSizeInput.value / 2.75
+      );
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(
+        startX - gridSizeInput.value / 2.75,
+        startY + gridSizeInput.value / 2.75
+      );
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(
+        startX - gridSizeInput.value / 2.75,
+        startY - gridSizeInput.value / 2.75
+      );
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(
+        startX + gridSizeInput.value / 2.75,
+        startY - gridSizeInput.value / 2.75
+      );
+      ctx.stroke();
+      addToUndoStack();
+    } else if (tool.value === "drop") {
+      ctx.beginPath();
+      ctx.arc(startX, startY, gridSizeInput.value / 4, 0, 2 * Math.PI);
+      ctx.stroke();
+      addToUndoStack();
+    } else if (tool.value === "valley-shield") {
+      ctx.beginPath();
+      ctx.arc(startX, startY, gridSizeInput.value / 4, 0, 2 * Math.PI);
+      ctx.fill();
+      addToUndoStack();
+    } else if (tool.value === "free-text") {
+      modal.classList.add("modal_visible");
+      // let userInput = prompt(
+      //   'Type in the elbow sequence or the length of the piece. (ex: AABA, 57")'
+      // );
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(currentX, currentY);
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-  for (let i = 0; i < touches.length; i++) {
-    let idx = ongoingTouchIndexById(touches[i].identifier);
-    ongoingTouches.splice(idx, 1);  // remove it; we're done
-  }
-}
-
-function copyTouch({ identifier, pageX, pageY }) {
-  return { identifier, pageX, pageY };
-}
-
-function ongoingTouchIndexById(idToFind) {
-  for (let i = 0; i < ongoingTouches.length; i++) {
-    const id = ongoingTouches[i].identifier;
-
-    if (id === idToFind) {
-      return i;
+      // Save the path state
+      addToUndoStack();
     }
   }
-  return -1;    // not found
 }
+
+// Undo the last action
+undoBtn.addEventListener("click", () => {
+  undo();
+});
 
 function undo() {
-  console.log(paths, index)
   if (index <= 0) {
-    clear();
+    clearCanvas();
   } else {
-    index -= 1;
-    indexCopy -= 1;
-
-    newPath.pop();
+    index--;
     paths.pop();
-    ctx.putImageData(paths[index], 0, 0);
+    ctx.putImageData(
+      paths[index] || ctx.getImageData(0, 0, canvas.width, canvas.height),
+      0,
+      0
+    );
+    updateUndoButton();
   }
 }
 
-function updateGridButton(element) {
-  if (paths.length > 0) {
-    element.innerText = 'Undo';
-    element.style.backgroundColor = 'silver';
+// Clear the canvas
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+  paths = [];
+  index = -1;
+  updateUndoButton();
+}
+
+clearButton.addEventListener("click", clearCanvas);
+
+// Update the undo button
+function updateUndoButton() {
+  undoBtn.innerText = paths.length > 0 ? "Undo" : "Update Grid";
+  undoBtn.style.backgroundColor = paths.length > 0 ? "silver" : "#d9f170";
+}
+
+function placeText(x, y) {
+  const userInput = textInputEl.value;
+  ctx.font = "1000 12px Arial";
+  ctx.fillStyle = "black";
+  ctx.textAlign = "center";
+  if (!userInput) {
+    return;
   } else {
-    element.style.backgroundColor = '#d9f170';
-    element.innerText = 'Update Grid';
+    ctx.fillText(`${userInput}`, x, y);
+    addToUndoStack();
   }
-};
+  textInputEl.value = "";
+  modal.classList.remove("modal_visible");
+}
+
+// Add event listeners
+canvas.addEventListener("pointerdown", startDrawing);
+canvas.addEventListener("pointermove", drawRubberLine);
+canvas.addEventListener("pointerup", stopDrawing);
+canvas.addEventListener("pointerout", stopDrawing);
+
+cancelBtn.addEventListener("click", (e) => {
+  modal.classList.remove("modal_visible");
+  textInputEl.value = "";
+});
+
+confirmBtn.addEventListener("click", (e) => {
+  placeText(startX, startY);
+});
+
+// Add touch events for mobile and tablets
+canvas.addEventListener("touchstart", (event) => {
+  event.preventDefault();
+  startDrawing(event);
+});
+canvas.addEventListener("touchmove", (event) => {
+  event.preventDefault();
+  drawRubberLine(event);
+});
+canvas.addEventListener("touchend", (event) => {
+  event.preventDefault();
+  stopDrawing();
+});
+canvas.addEventListener("touchcancel", stopDrawing);
+
+// Initialize on DOMContentLoaded
+document.addEventListener("DOMContentLoaded", startup);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    undo();
+  }
+});
 
 function finish() {
   window.onbeforeprint = (event) => {
-    toolsBar = document.querySelector('.tools-bar');
-    toolsBar.style.display = 'none';
+    toolsBar = document.querySelector(".tools-bar");
+    toolsBar.style.display = "none";
+    legendPic = document.querySelector(".legend-pic");
   };
   window.print();
 }
 
 window.onafterprint = (event) => {
-  toolsBar = document.querySelector('.tools-bar');
-  toolsBar.style.display = 'flex';
-}
+  toolsBar = document.querySelector(".tools-bar");
+  toolsBar.style.display = "flex";
+};
